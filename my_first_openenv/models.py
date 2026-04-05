@@ -13,7 +13,7 @@ The my_first_openenv environment simulates procurement vendor selection tasks.
 from typing import Any
 
 from openenv.core.env_server.types import Action, Observation
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Vendor(BaseModel):
@@ -28,7 +28,9 @@ class Vendor(BaseModel):
 class MyFirstOpenenvAction(Action):
     """Action payload for procurement tasks."""
 
-    action_type: str = Field(..., description="One of: filter, select, optimize")
+    model_config = ConfigDict(extra="forbid")
+
+    action_type: str = Field(..., pattern="^(filter|select|optimize)$", description="One of: filter, select, optimize")
     valid_vendor_ids: list[int] | None = Field(
         default=None,
         description="Predicted valid vendor IDs for filter tasks",
