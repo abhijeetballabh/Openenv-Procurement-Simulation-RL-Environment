@@ -1,255 +1,60 @@
----
-title: My First Openenv Environment Server
-emoji: 📀
-colorFrom: red
-colorTo: purple
-sdk: docker
-pinned: false
-app_port: 8000
-base_path: /web
-tags:
-  - openenv
----
+# Procurement Environment
 
-# My First Openenv Environment
+## Overview
 
-A simple test environment that echoes back messages. Perfect for testing the env APIs as well as demonstrating environment usage patterns.
+This environment simulates a procurement decision workflow where an agent must choose the best vendor under business constraints. Each episode provides a set of vendor options and rule-based constraints, and the agent must return a structured decision that matches the task difficulty.
 
-## Quick Start
+The setup is deterministic at the policy level by using the baseline `solve_task()` decision function, with no external LLM or API dependency.
 
-The simplest way to use the My First Openenv environment is through the `MyFirstOpenenvEnv` class:
+## Observation Space
 
-```python
-from my_first_openenv import MyFirstOpenenvAction, MyFirstOpenenvEnv
+Each observation contains:
 
-try:
-    # Create environment from Docker image
-    my_first_openenvenv = MyFirstOpenenvEnv.from_docker_image("my_first_openenv-env:latest")
+- `vendors`: a list of vendor candidates.
+  - `price`: quoted cost.
+  - `delivery_days`: delivery time.
+  - `rating`: quality score.
+- `constraints`: rule set for acceptable vendors.
+  - `max_delivery_days`
+  - `min_rating`
 
-    # Reset
-    result = my_first_openenvenv.reset()
-    print(f"Reset: {result.observation.echoed_message}")
+## Action Space
 
-    # Send multiple messages
-    messages = ["Hello, World!", "Testing echo", "Final message"]
+- `easy` -> `valid_vendor_ids`
+- `medium` -> `selected_vendor_id`
+- `hard` -> `selected_vendor_id`
 
-    for msg in messages:
-        result = my_first_openenvenv.step(MyFirstOpenenvAction(message=msg))
-        print(f"Sent: '{msg}'")
-        print(f"  → Echoed: '{result.observation.echoed_message}'")
-        print(f"  → Length: {result.observation.message_length}")
-        print(f"  → Reward: {result.reward}")
+## Tasks
 
-finally:
-    # Always clean up
-    my_first_openenvenv.close()
-```
+- `easy`: filtering task. Identify all vendors that satisfy constraints.
+- `medium`: selection task. Choose the best vendor among valid vendors.
+- `hard`: optimization task. Choose the vendor with the best weighted score.
 
-That's it! The `MyFirstOpenenvEnv.from_docker_image()` method handles:
-- Starting the Docker container
-- Waiting for the server to be ready
-- Connecting to the environment
-- Container cleanup when you call `close()`
+## Reward Design
 
-## Building the Docker Image
+Rewards are in the range `[0, 1]` and reflect decision quality:
 
-Before using the environment, you need to build the Docker image:
+- Partial rewards are used when decisions are partially correct.
+- Constraint satisfaction is explicitly rewarded for valid filtering/selection.
+- Optimality scoring is used for harder decisions, with full reward for the best choice and fractional reward for near-optimal choices.
 
-```bash
-# From project root
-docker build -t my_first_openenv-env:latest -f server/Dockerfile .
-```
+## How to Run
 
-## Deploying to Hugging Face Spaces
-
-You can easily deploy your OpenEnv environment to Hugging Face Spaces using the `openenv push` command:
-
-```bash
-# From the environment directory (where openenv.yaml is located)
-openenv push
-
-# Or specify options
-openenv push --namespace my-org --private
-```
-
-The `openenv push` command will:
-1. Validate that the directory is an OpenEnv environment (checks for `openenv.yaml`)
-2. Prepare a custom build for Hugging Face Docker space (enables web interface)
-3. Upload to Hugging Face (ensuring you're logged in)
-
-### Prerequisites
-
-- Authenticate with Hugging Face: The command will prompt for login if not already authenticated
-
-### Options
-
-- `--directory`, `-d`: Directory containing the OpenEnv environment (defaults to current directory)
-- `--repo-id`, `-r`: Repository ID in format 'username/repo-name' (defaults to 'username/env-name' from openenv.yaml)
-- `--base-image`, `-b`: Base Docker image to use (overrides Dockerfile FROM)
-- `--private`: Deploy the space as private (default: public)
-
-### Examples
-
-```bash
-# Push to your personal namespace (defaults to username/env-name from openenv.yaml)
-openenv push
-
-# Push to a specific repository
-openenv push --repo-id my-org/my-env
-
-# Push with a custom base image
-openenv push --base-image ghcr.io/meta-pytorch/openenv-base:latest
-
-# Push as a private space
-openenv push --private
-
-# Combine options
-openenv push --repo-id my-org/my-env --base-image custom-base:latest --private
-```
-
-After deployment, your space will be available at:
-`https://huggingface.co/spaces/<repo-id>`
-
-The deployed space includes:
-- **Web Interface** at `/web` - Interactive UI for exploring the environment
-- **API Documentation** at `/docs` - Full OpenAPI/Swagger interface
-- **Health Check** at `/health` - Container health monitoring
-- **WebSocket** at `/ws` - Persistent session endpoint for low-latency interactions
-
-## Environment Details
-
-### Action
-**MyFirstOpenenvAction**: Contains a single field
-- `message` (str) - The message to echo back
-
-### Observation
-**MyFirstOpenenvObservation**: Contains the echo response and metadata
-- `echoed_message` (str) - The message echoed back
-- `message_length` (int) - Length of the message
-- `reward` (float) - Reward based on message length (length × 0.1)
-- `done` (bool) - Always False for echo environment
-- `metadata` (dict) - Additional info like step count
-
-### Reward
-The reward is calculated as: `message_length × 0.1`
-- "Hi" → reward: 0.2
-- "Hello, World!" → reward: 1.3
-- Empty message → reward: 0.0
-
-## Advanced Usage
-
-### Connecting to an Existing Server
-
-If you already have a My First Openenv environment server running, you can connect directly:
-
-```python
-from my_first_openenv import MyFirstOpenenvEnv
-
-# Connect to existing server
-my_first_openenvenv = MyFirstOpenenvEnv(base_url="<ENV_HTTP_URL_HERE>")
-
-# Use as normal
-result = my_first_openenvenv.reset()
-result = my_first_openenvenv.step(MyFirstOpenenvAction(message="Hello!"))
-```
-
-Note: When connecting to an existing server, `my_first_openenvenv.close()` will NOT stop the server.
-
-### Using the Context Manager
-
-The client supports context manager usage for automatic connection management:
-
-```python
-from my_first_openenv import MyFirstOpenenvAction, MyFirstOpenenvEnv
-
-# Connect with context manager (auto-connects and closes)
-with MyFirstOpenenvEnv(base_url="http://localhost:8000") as env:
-    result = env.reset()
-    print(f"Reset: {result.observation.echoed_message}")
-    # Multiple steps with low latency
-    for msg in ["Hello", "World", "!"]:
-        result = env.step(MyFirstOpenenvAction(message=msg))
-        print(f"Echoed: {result.observation.echoed_message}")
-```
-
-The client uses WebSocket connections for:
-- **Lower latency**: No HTTP connection overhead per request
-- **Persistent session**: Server maintains your environment state
-- **Efficient for episodes**: Better for many sequential steps
-
-### Concurrent WebSocket Sessions
-
-The server supports multiple concurrent WebSocket connections. To enable this,
-modify `server/app.py` to use factory mode:
-
-```python
-# In server/app.py - use factory mode for concurrent sessions
-app = create_app(
-    MyFirstOpenenvEnvironment,  # Pass class, not instance
-    MyFirstOpenenvAction,
-    MyFirstOpenenvObservation,
-    max_concurrent_envs=4,  # Allow 4 concurrent sessions
-)
-```
-
-Then multiple clients can connect simultaneously:
-
-```python
-from my_first_openenv import MyFirstOpenenvAction, MyFirstOpenenvEnv
-from concurrent.futures import ThreadPoolExecutor
-
-def run_episode(client_id: int):
-    with MyFirstOpenenvEnv(base_url="http://localhost:8000") as env:
-        result = env.reset()
-        for i in range(10):
-            result = env.step(MyFirstOpenenvAction(message=f"Client {client_id}, step {i}"))
-        return client_id, result.observation.message_length
-
-# Run 4 episodes concurrently
-with ThreadPoolExecutor(max_workers=4) as executor:
-    results = list(executor.map(run_episode, range(4)))
-```
-
-## Development & Testing
-
-### Direct Environment Testing
-
-Test the environment logic directly without starting the HTTP server:
-
-```bash
-# From the server directory
-python3 server/my_first_openenv_environment.py
-```
-
-This verifies that:
-- Environment resets correctly
-- Step executes actions properly
-- State tracking works
-- Rewards are calculated correctly
-
-### Running Locally
-
-Run the server locally for development:
+Local:
 
 ```bash
 uvicorn server.app:app --reload
 ```
 
-## Project Structure
+Docker:
 
+```bash
+docker build -t procurement-env -f my_first_openenv/server/Dockerfile .
+docker run -p 8000:8000 procurement-env
 ```
-my_first_openenv/
-├── .dockerignore         # Docker build exclusions
-├── __init__.py            # Module exports
-├── README.md              # This file
-├── openenv.yaml           # OpenEnv manifest
-├── pyproject.toml         # Project metadata and dependencies
-├── uv.lock                # Locked dependencies (generated)
-├── client.py              # MyFirstOpenenvEnv client
-├── models.py              # Action and Observation models
-└── server/
-    ├── __init__.py        # Server module exports
-    ├── my_first_openenv_environment.py  # Core environment logic
-    ├── app.py             # FastAPI application (HTTP + WebSocket endpoints)
-    └── Dockerfile         # Container image definition
-```
+
+## Notes
+
+- Deterministic baseline policy is implemented in `client.py` via `solve_task()`.
+- No external API dependency is required for inference.
+- Results are reproducible under fixed random seed and deterministic action selection.
