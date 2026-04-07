@@ -22,6 +22,10 @@ Procurement teams routinely evaluate multiple vendors under hard business constr
 - Typed models: [procurement_openenv/models.py](procurement_openenv/models.py)
 - Baseline policy: [procurement_openenv/client.py](procurement_openenv/client.py)
 
+## Hugging Face Space
+
+- Live deployment: https://huggingface.co/spaces/abhijeetballabh/procurement-env
+
 ## Environment design
 
 The agent receives a set of vendors and operational constraints, then emits structured actions depending on task difficulty.
@@ -85,11 +89,3 @@ docker run -p 8000:8000 procurement-env
 cd procurement_openenv
 openenv push --repo-id <your-username>/procurement-env
 ```
-
-## Submission readiness
-
-- OpenEnv validation passing
-- Docker build tested
-- HF Space deployment tested
-- Structured inference logs verified
-- Task coverage for easy, medium, hard

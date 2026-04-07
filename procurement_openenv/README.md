@@ -85,11 +85,3 @@ docker run -p 8000:8000 procurement-env
 cd procurement_openenv
 openenv push --repo-id <your-username>/procurement-env
 ```
-
-## Submission readiness
-
-- OpenEnv validation passing
-- Docker build tested
-- HF Space deployment tested
-- Structured inference logs verified
-- Task coverage for easy, medium, hard
