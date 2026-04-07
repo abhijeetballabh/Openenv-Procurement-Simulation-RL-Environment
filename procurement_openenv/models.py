@@ -7,7 +7,7 @@
 """
 Data models for the My First Openenv Environment.
 
-The my_first_openenv environment simulates procurement vendor selection tasks.
+The procurement_openenv environment simulates procurement vendor selection tasks.
 """
 
 from typing import Any

@@ -22,7 +22,7 @@ RUN apt-get update && \
 
 # Build argument to control whether we're building standalone or in-repo
 ARG BUILD_MODE=in-repo
-ARG ENV_NAME=my_first_openenv
+ARG ENV_NAME=procurement_openenv
 
 # Copy environment code (always at root of build context)
 COPY . /app/env
@@ -55,8 +55,8 @@ RUN if ! command -v uv >/dev/null 2>&1; then \
 #     fi
 
 RUN python -m venv /app/env/.venv && \
-    if [ -f my_first_openenv/server/requirements.txt ]; then \
-        /app/env/.venv/bin/pip install --no-cache-dir -r my_first_openenv/server/requirements.txt; \
+    if [ -f procurement_openenv/server/requirements.txt ]; then \
+        /app/env/.venv/bin/pip install --no-cache-dir -r procurement_openenv/server/requirements.txt; \
     elif [ -f server/requirements.txt ]; then \
         /app/env/.venv/bin/pip install --no-cache-dir -r server/requirements.txt; \
     else \
@@ -85,4 +85,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the FastAPI server. Support both nested and flat project layouts.
-CMD ["sh", "-c", "cd /app/env && if [ -d my_first_openenv ]; then uvicorn my_first_openenv.server.app:app --host 0.0.0.0 --port 8000; else uvicorn server.app:app --host 0.0.0.0 --port 8000; fi"]
+CMD ["sh", "-c", "cd /app/env && if [ -d procurement_openenv ]; then uvicorn procurement_openenv.server.app:app --host 0.0.0.0 --port 8000; else uvicorn server.app:app --host 0.0.0.0 --port 8000; fi"]
