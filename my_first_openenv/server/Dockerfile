@@ -55,7 +55,13 @@ RUN if ! command -v uv >/dev/null 2>&1; then \
 #     fi
 
 RUN python -m venv /app/env/.venv && \
-    /app/env/.venv/bin/pip install --no-cache-dir -r my_first_openenv/server/requirements.txt
+    if [ -f my_first_openenv/server/requirements.txt ]; then \
+        /app/env/.venv/bin/pip install --no-cache-dir -r my_first_openenv/server/requirements.txt; \
+    elif [ -f server/requirements.txt ]; then \
+        /app/env/.venv/bin/pip install --no-cache-dir -r server/requirements.txt; \
+    else \
+        echo "requirements.txt not found"; exit 1; \
+    fi
 
 # Final runtime stage
 FROM ${BASE_IMAGE}
@@ -78,6 +84,5 @@ ENV PYTHONPATH="/app/env:$PYTHONPATH"
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the FastAPI server
-# The module path targets the packaged environment module under /app/env/my_first_openenv.
-CMD ["sh", "-c", "cd /app/env && uvicorn my_first_openenv.server.app:app --host 0.0.0.0 --port 8000"]
+# Run the FastAPI server. Support both nested and flat project layouts.
+CMD ["sh", "-c", "cd /app/env && if [ -d my_first_openenv ]; then uvicorn my_first_openenv.server.app:app --host 0.0.0.0 --port 8000; else uvicorn server.app:app --host 0.0.0.0 --port 8000; fi"]

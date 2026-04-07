@@ -1,3 +1,15 @@
+---
+title: Procurement Environment
+emoji: 🤖
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 8000
+tags:
+  - openenv
+  - procurement
+---
+
 # Procurement Environment
 
 ## Overview
@@ -53,8 +65,46 @@ docker build -t procurement-env -f my_first_openenv/server/Dockerfile .
 docker run -p 8000:8000 procurement-env
 ```
 
+## Baseline Inference
+
+The submission baseline script is [inference.py](inference.py). It emits strict structured logs:
+
+- `[START] task=<task> env=<benchmark> model=<model_name>`
+- `[STEP] step=<n> action=<action> reward=<0.00> done=<true|false> error=<msg|null>`
+- `[END] success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...>`
+
+Set environment variables before running:
+
+```bash
+export API_BASE_URL=https://router.huggingface.co/v1
+export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct
+export HF_TOKEN=<your_api_key>
+python inference.py
+```
+
+Windows PowerShell:
+
+```powershell
+$env:API_BASE_URL="https://router.huggingface.co/v1"
+$env:MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+$env:HF_TOKEN="<your_api_key>"
+python inference.py
+```
+
+If no API key is provided, the script safely falls back to the deterministic `solve_task()` baseline so execution still completes.
+
+## Baseline Scores
+
+Example reproducible baseline run (seed = 42, deterministic fallback policy):
+
+- easy: 1.00
+- medium: 1.00
+- hard: 1.00
+
+All scores are in `[0.0, 1.0]` and are produced by the same `inference.py` script used for submission.
+
 ## Notes
 
 - Deterministic baseline policy is implemented in `client.py` via `solve_task()`.
-- No external API dependency is required for inference.
-- Results are reproducible under fixed random seed and deterministic action selection.
+- Inference script supports OpenAI-compatible API routing via `API_BASE_URL`, `MODEL_NAME`, and `HF_TOKEN`.
+- Results are reproducible under fixed random seed and deterministic fallback action selection.

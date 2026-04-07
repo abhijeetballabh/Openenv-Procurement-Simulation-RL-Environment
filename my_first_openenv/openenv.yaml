@@ -1,5 +1,13 @@
+spec_version: 1
 name: procurement-env
 description: A real-world procurement vendor selection environment where an agent selects optimal vendors based on structured constraints.
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+tags:
+  - openenv
+  - procurement
 
 tasks:
   - id: easy

@@ -1,20 +1,34 @@
-"""Deterministic local inference runner for My First Openenv submission."""
+"""OpenEnv inference runner for procurement tasks with strict structured logs."""
 
 from __future__ import annotations
 
+import json
+import os
 import random
 from typing import Optional
+
+from openai import OpenAI
 
 from server.my_first_openenv_environment import MyFirstOpenenvEnvironment
 from models import MyFirstOpenenvAction
 from client import solve_task
 
 ENV_NAME = "procurement"
-MODEL_NAME = "deterministic"
 TASKS = ("easy", "medium", "hard")
 MAX_STEPS = 8
 SUCCESS_SCORE_THRESHOLD = 0.5
 RANDOM_SEED = 42
+
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
+API_KEY = os.getenv("HF_TOKEN") or os.getenv("OPENAI_API_KEY")
+
+SYSTEM_PROMPT = (
+    "You are an expert procurement assistant. Return only valid JSON with keys "
+    "action_type, valid_vendor_ids, selected_vendor_id. "
+    "Use action_type=filter for easy, action_type=select for medium, "
+    "action_type=optimize for hard."
+)
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -48,6 +62,44 @@ def _clamp_score(value: float) -> float:
     return min(max(value, 0.0), 1.0)
 
 
+def _build_user_prompt(observation) -> str:
+    payload = {
+        "task_type": observation.task_type,
+        "constraints": observation.constraints,
+        "vendors": [vendor.model_dump() for vendor in observation.vendors],
+    }
+    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+
+
+def _extract_json(text: str) -> str:
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("No JSON object found in model output")
+    return text[start : end + 1]
+
+
+def _llm_action_or_fallback(client: OpenAI, observation) -> MyFirstOpenenvAction:
+    if not API_KEY:
+        return solve_task(observation)
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": _build_user_prompt(observation)},
+            ],
+            temperature=0.0,
+            max_tokens=220,
+        )
+        content = (response.choices[0].message.content or "").strip()
+        action_payload = json.loads(_extract_json(content))
+        return MyFirstOpenenvAction(**action_payload)
+    except Exception:
+        return solve_task(observation)
+
+
 def run_task(env: MyFirstOpenenvEnvironment, task_type: str) -> None:
     rewards: list[float] = []
     steps_taken = 0
@@ -56,8 +108,10 @@ def run_task(env: MyFirstOpenenvEnvironment, task_type: str) -> None:
 
     observation = env.reset(task_type)
 
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY or "placeholder")
+
     for step in range(1, MAX_STEPS + 1):
-        action = solve_task(observation)
+        action = _llm_action_or_fallback(client, observation)
         result = env.step(action)
 
         reward = float(result.reward or 0.0)

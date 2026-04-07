@@ -54,3 +54,10 @@ class MyFirstOpenenvObservation(Observation):
         description="Task constraints",
     )
     task_type: str = Field(default="easy", description="Task difficulty type")
+
+
+class MyFirstOpenenvReward(BaseModel):
+    """Typed reward payload for evaluation and logging semantics."""
+
+    value: float = Field(..., ge=0.0, le=1.0, description="Reward value in [0, 1]")
+    reason: str = Field(default="", description="Optional reward rationale")
