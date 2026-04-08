@@ -60,7 +60,7 @@ def _action_to_string(action: MyFirstOpenenvAction) -> str:
 
 
 def _clamp_score(value: float) -> float:
-    return min(max(value, 0.0), 1.0)
+    return min(max(value, 0.01), 0.99)
 
 
 def _build_user_prompt(observation) -> str:

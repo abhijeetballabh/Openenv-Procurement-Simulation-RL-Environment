@@ -55,6 +55,17 @@ class MyFirstOpenenvEnvironment(Environment):
     def _clamp(value: float, min_value: float = 0.0, max_value: float = 1.0) -> float:
         return max(min_value, min(max_value, value))
 
+    def _shape_reward(self, raw_reward: float) -> float:
+        """Map raw task reward into strict (0, 1) bands with difficulty variation."""
+        bounded = self._clamp(raw_reward)
+        task_bands = {
+            "easy": (0.08, 0.84),
+            "medium": (0.05, 0.90),
+            "hard": (0.02, 0.96),
+        }
+        offset, scale = task_bands.get(self._task_type, (0.05, 0.90))
+        return offset + scale * bounded
+
     def meets_constraints(self, vendor) -> bool:
         return (
             vendor.rating >= self._constraints["min_rating"]
@@ -225,7 +236,7 @@ class MyFirstOpenenvEnvironment(Environment):
             else:
                 reward = 0.0
 
-        reward = self._clamp(reward)
+        reward = self._shape_reward(reward)
         self._state = self._build_state()
 
         score_snapshot = {
