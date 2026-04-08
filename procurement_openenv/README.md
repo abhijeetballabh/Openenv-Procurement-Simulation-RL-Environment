@@ -1,3 +1,16 @@
+---
+title: Procurement Environment
+emoji: "🤖"
+colorFrom: red
+colorTo: blue
+sdk: docker
+app_port: 8000
+base_path: /web
+tags:
+  - openenv
+  - procurement
+---
+
 # Procurement Vendor Optimization Environment
 
 ## Why this project matters
